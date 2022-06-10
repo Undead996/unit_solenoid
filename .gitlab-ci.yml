@@ -1,0 +1,221 @@
+stages:
+  - build
+  - prepare
+  - autotests
+  - finish
+  
+variables:
+  TEST_IMAGE_CURRENT: $CI_REGISTRY_IMAGE/test:$CI_COMMIT_SHORT_SHA
+  # TEST_IMAGE_CURRENT: $CI_REGISTRY_IMAGE/test:$CI_COMMIT_REF_NAME
+  TEST_IMAGE_CACHE: $CI_REGISTRY_IMAGE/test:$CI_COMMIT_REF_NAME
+  TEST_IMAGE_LATEST: $CI_REGISTRY_IMAGE/test:master
+  TEST_CONTEXT: test/
+  
+  # DB_IMAGE_CURRENT: $CI_REGISTRY_IMAGE/db:$CI_COMMIT_SHORT_SHA
+  # # DB_IMAGE_CURRENT: $CI_REGISTRY_IMAGE/db:$CI_COMMIT_REF_NAME
+  # DB_IMAGE_CACHE: $CI_REGISTRY_IMAGE/db:$CI_COMMIT_REF_NAME
+  # DB_IMAGE_LATEST: $CI_REGISTRY_IMAGE/db:master
+  # DB_CONTEXT: db/
+  
+
+# ---------------------------------------- build ------------------------------------------
+
+build:
+  stage: build
+  timeout: 10 minutes
+  only:
+    - merge_requests
+    - web
+  services:
+    - name: docker:19.03.13-dind
+      command: ["--registry-mirror", "http://registry-mirror:5000"]
+  image: ${CI_DEPENDENCY_PROXY_DIRECT_GROUP_IMAGE_PREFIX}/docker:19.03.13-git
+  variables:
+    GIT_STRATEGY: clone
+    GIT_DEPTH: 10
+  
+  before_script:
+    - echo "runner $CI_RUNNER_ID ($CI_RUNNER_DESCRIPTION)"
+    - env -u CI_SERVER_TLS_CA_FILE | sort -f
+    
+    # второй логин для dependency proxy
+    - echo $CI_JOB_TOKEN | docker login --username $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+    - echo $CI_JOB_TOKEN | docker login --username $CI_REGISTRY_USER --password-stdin $CI_SERVER_HOST:443
+  
+  script:
+  
+    - (docker pull $TEST_IMAGE_CACHE && docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from $TEST_IMAGE_CACHE -t $TEST_IMAGE_CACHE -t $TEST_IMAGE_CURRENT -t $TEST_IMAGE_LATEST $TEST_CONTEXT ) || ((docker pull $TEST_IMAGE_LATEST || true) && docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from $TEST_IMAGE_LATEST -t $TEST_IMAGE_CURRENT -t $TEST_IMAGE_CACHE -t $TEST_IMAGE_LATEST $TEST_CONTEXT )
+    - time docker push $TEST_IMAGE_CACHE
+    - time docker push $TEST_IMAGE_CURRENT
+  
+    # - (docker pull $DB_IMAGE_CACHE && docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from $DB_IMAGE_CACHE -t $DB_IMAGE_CURRENT -t $DB_IMAGE_LATEST $DB_CONTEXT ) || ((docker pull $DB_IMAGE_LATEST || true) && docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from $DB_IMAGE_LATEST -t $DB_IMAGE_CURRENT -t $DB_IMAGE_CACHE -t $DB_IMAGE_LATEST $DB_CONTEXT )
+    # - time docker push $DB_IMAGE_CACHE
+    # - time docker push $DB_IMAGE_CURRENT
+
+  tags:
+    - docker
+    
+  artifacts:
+    paths:
+      - docker-compose-ci.yml
+      - docker-compose-add-selenoid.yml
+      - selenoid
+
+# ---------------------------------------- шаблоны ------------------------------------------
+
+.autotests-base:
+  stage: autotests
+  timeout: 1 hours
+  only:
+    - merge_requests
+    - web
+  except:
+    variables:
+      - $CI_MERGE_REQUEST_TITLE =~ /WIP/
+  services:
+    - name: docker:19.03.12-dind
+      command: ["--registry-mirror", "http://registry-mirror:5000"]
+  image: ${CI_DEPENDENCY_PROXY_DIRECT_GROUP_IMAGE_PREFIX}/docker/compose:1.29.2
+  dependencies:
+    - build
+  variables:
+    GIT_STRATEGY: none
+    
+  before_script:
+    - echo "runner $CI_RUNNER_ID ($CI_RUNNER_DESCRIPTION)"
+    - echo $CI_JOB_TOKEN | docker login --username $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+    - echo $CI_JOB_TOKEN | docker login --username $CI_REGISTRY_USER --password-stdin $CI_SERVER_HOST:443
+
+    - mkdir logs_unit
+    - cat docker-compose-ci.yml > docker-compose.yml
+    - time docker-compose up -d
+    
+    # - sleep 60
+    # - docker exec -t unit php database.php
+    # - docker exec -t unit_forgate vendor/bin/phinx migrate -e forgate_green
+    
+  script:
+    # - docker exec -t unit vendor/bin/phpunit
+  tags:
+    - docker
+
+  artifacts:
+    paths:
+      - logs_unit
+    when: always
+    
+  # rules:
+    # - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      # when: manual
+
+.webtests-base:
+  stage: autotests
+  timeout: 1 hours
+  only:
+    - merge_requests
+    - web
+  except:
+    variables:
+      - $CI_MERGE_REQUEST_TITLE =~ /WIP/
+  services:
+    - name: docker:19.03.12-dind
+      command: ["--registry-mirror", "http://registry-mirror:5000"]
+  image: ${CI_DEPENDENCY_PROXY_DIRECT_GROUP_IMAGE_PREFIX}/docker/compose:1.29.2
+  dependencies:
+    - build
+  variables:
+    GIT_STRATEGY: none
+    
+  before_script:
+    - echo $CI_JOB_TOKEN | docker login --username $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+    - echo $CI_JOB_TOKEN | docker login --username $CI_REGISTRY_USER --password-stdin $CI_SERVER_HOST:443
+    
+    # автоматически образы не качаются, т.к. запускаются изнутри других образов
+    - docker pull ${CI_DEPENDENCY_PROXY_DIRECT_GROUP_IMAGE_PREFIX}/selenoid/video-recorder:latest-release
+    - docker pull ${CI_DEPENDENCY_PROXY_DIRECT_GROUP_IMAGE_PREFIX}/selenoid/chrome:90.0
+    # - docker pull ${CI_DEPENDENCY_PROXY_DIRECT_GROUP_IMAGE_PREFIX}/selenoid/firefox:88.0
+    - docker tag ${CI_DEPENDENCY_PROXY_DIRECT_GROUP_IMAGE_PREFIX}/selenoid/video-recorder:latest-release selenoid/video-recorder:latest-release
+    - docker tag ${CI_DEPENDENCY_PROXY_DIRECT_GROUP_IMAGE_PREFIX}/selenoid/chrome:90.0 selenoid/chrome:90.0
+    # - docker tag ${CI_DEPENDENCY_PROXY_DIRECT_GROUP_IMAGE_PREFIX}/selenoid/firefox:88.0 selenoid/firefox:88.0
+    
+    - mkdir video
+    - mkdir logs_unit
+    - mkdir logs_selenoid
+    
+    - cat docker-compose-ci.yml docker-compose-add-selenoid.yml > docker-compose.yml
+    - docker-compose up -d
+  script:
+    # для записи видео не забыть включать cababilities https://aerokube.com/selenoid/latest/#_video_recording_enablevideo_videoname_videoscreensize_videoframerate_videocodec, то же для логов
+    # - docker exec -t unit php selenoid-example.php
+  tags:
+    - docker
+
+  artifacts:
+    paths:
+      - logs_unit
+      - logs_selenoid
+      - video
+    when: always
+    
+# ----------------------------------------- тесты -------------------------------------------
+
+# сначала почистим базу
+clear-db-before:
+  extends:
+    - .autotests-base
+  stage: prepare
+  script:
+    - docker exec -t unit php clear_db.php
+    
+# на обновление конфига достаточно теста по одному шлюзу
+config-update:
+  extends:
+    - .autotests-base
+  script:
+    - docker exec -t unit vendor/bin/phpunit  tests/ConfigUpdate_Paymega_Test.php
+
+balance-hc:
+  extends:
+    - .autotests-base
+  script:
+    - docker exec -t unit vendor/bin/phpunit  tests/Balance_HashConnect_Test.php
+    
+merchant-hc:
+  extends:
+    - .autotests-base
+  script:
+    - docker exec -t unit vendor/bin/phpunit  tests/Merchant_HashConnect_Test.php
+
+balance-guava:
+  extends:
+    - .autotests-base
+  script:
+    - docker exec -t unit vendor/bin/phpunit  tests/Balance_Guava_Test.php
+
+balance-qiwi:
+  extends:
+    - .autotests-base
+  script:
+    - docker exec -t unit vendor/bin/phpunit  tests/Balance_Qiwi_Test.php
+
+guava-dev-20-exchange:
+  extends:
+    - .autotests-base
+  script:
+    - docker exec -t unit vendor/bin/phpunit  tests/Merchant_Dev_Guava_Test.php
+    
+# пример теста с использованием браузера
+test-selenoid:
+  extends:
+    - .webtests-base
+  script:
+    - docker exec -t unit php selenoid-example.php
+    
+# чистка за собой, если тест успешный
+clear-db-after:
+  extends:
+    - .autotests-base
+  stage: finish
+  script:
+    - docker exec -t unit php clear_db.php
+    

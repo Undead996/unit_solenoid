@@ -1,0 +1,17 @@
+
+  selenoid:
+    container_name: selenoid
+    image: ${CI_DEPENDENCY_PROXY_DIRECT_GROUP_IMAGE_PREFIX}/aerokube/selenoid:latest-release
+    volumes:
+      - "/builds/gates/autotests/selenoid:/etc/selenoid"
+      - "/builds/gates/autotests/video:/opt/selenoid/video"
+      - "/builds/gates/autotests/logs_selenoid:/opt/selenoid/logs"
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      # путь к видео на хосте
+      - OVERRIDE_VIDEO_OUTPUT_DIR=/builds/gates/autotests/video
+    command: ["-conf", "/etc/selenoid/browsers.json", "-video-output-dir", "/opt/selenoid/video", "-log-output-dir", "/opt/selenoid/logs", "-container-network", "autotests_app_net"]
+    ports:
+      - "4444:4444"
+    networks:
+      app_net:

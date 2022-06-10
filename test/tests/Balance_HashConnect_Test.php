@@ -1,0 +1,114 @@
+<?php
+
+use PHPUnit\Framework\TestCase;
+
+class Balance_HashConnect_Test extends TestCase
+{
+    public function testBalance_ok()
+    {   
+        $this->assertSame('balance_ok', $this->executeExchangeCommand(__FUNCTION__, BALANCE_RANDOM_POSITIVE_AMOUNT . '-1'));
+    }
+    public function testBalance_zero()
+    {   
+        $this->assertSame('balance_ok', $this->executeExchangeCommand(__FUNCTION__, BALANCE_ZERO . '-1'));
+    }
+    public function testBalance_negative()
+    {   
+        $this->assertSame('balance_ok', $this->executeExchangeCommand(__FUNCTION__, BALANCE_RANDOM_NEGATIVE_AMOUNT . '-1'));
+    }
+    
+    public function testBalance_invalidJson()
+    {   
+        $this->assertSame('balance_exception', $this->executeExchangeCommand(__FUNCTION__, BALANCE_INCORRECT_ANSWER . '-1'));
+    }
+    
+    public function testBalance_jsonElem()
+    {   
+        $this->assertSame('balance_exception', $this->executeExchangeCommand(__FUNCTION__, BALANCE_ELEMENT_MISSING . '-1'));
+    }
+    
+    // public function testBalance_invalidCode()
+    // {   
+        // $this->assertSame('balance_exception', $this->executeExchangeCommand(__FUNCTION__, BALANCE_WRONG_ENCODE . '-1'));
+    // }
+    
+    public function testBalance_invalidBalance()
+    {   
+        $this->assertSame('balance_exception', $this->executeExchangeCommand(__FUNCTION__, BALANCE_WRONG_NUMBER . '-1'));
+    }
+    
+    public function testBalance_TimeoutY()
+    {   
+        $this->assertSame('balance_ok', $this->executeExchangeCommand(__FUNCTION__, BALANCE_TIMEOUT_70 . '-1', 80));
+    }
+    
+    public function testBalance_TimeoutZ()
+    {   
+        $this->assertSame('balance_exception', $this->executeExchangeCommand(__FUNCTION__, BALANCE_TIMEOUT_130 . '-1', 140));
+    }
+    
+    public function testBalance_Timeout()
+    {   
+        $this->assertSame('balance_exception', $this->executeExchangeCommand(__FUNCTION__, BALANCE_TIMEOUT_FULL . '-1', 180));
+    }
+    
+    public function testBalance_definitive_error()
+    {   
+        $this->assertSame('balance_definitive_error', $this->executeExchangeCommand(__FUNCTION__, BALANCE_PROTOCOL_FATAL . '-1'));
+    }
+    
+    public function testBalance_temporary_error()
+    {   
+        $this->assertSame('balance_temporary_error', $this->executeExchangeCommand(__FUNCTION__, BALANCE_PROTOCOL_NONFATAL . '-1'));
+    }
+
+
+    
+    
+
+	private function init($test_name) 
+	{
+		$this->loger = new Logger($test_name, 'balance', LOGS_DIR);
+		$this->db = new DBConnect(MYSQL_EXCHANGE_HOST, MYSQL_EXCHANGE_LOGIN, MYSQL_EXCHANGE_PASSWORD, MYSQL_EXCHANGE_DB, $this->loger);
+	}
+    
+    private function executeExchangeCommand($test_name, $site_id_pay, $timeout = 10)
+    {   
+		$this->init($test_name);
+		
+        $rows = [
+				['w1_site_id_pay',         $site_id_pay],
+				['w1_private_key',         'LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQ0KTUlJRXBRSUJBQUtDQVFFQTBEVEFqbjRvZk9JRndNOERhQnZEVzdlVE9CRGI2ZG9jdmxGazJ5MjB4T1FPVU1GOA0KdmNNMklLUWVOM0ROTGlOQUR3OGxQNDRNWVF3Z3JHUnNPQkwvbmpBd0M3RGh3bmpWK0ZyZkg3bUljZHdBU05qaA0KYnFBWCtuZzZqQzFTTjdQRnhpaEdadmtubmZnU0ZwZ0dkVmhSMENPWWwvU3ZzRlkzWGpKMmduVVFjRURPK2UyTA0KVE5nTy9yd3AxZWg4WnFIWStKMDN6L3dBemNsVTdsc29tRnR5UDVVTi8vUkFPZjExSnU2RFkydHFhSjVKcXc0UQ0Kb1NyNkV5RkE4OTF6emc1L3ZUUklQWlhPWG8rSm5wR3c4b0hrYjdtOXByWTVKNmZXQld1cS9wNDZSd1oxOGozRQ0KRzlzYnNKZVNVVmdsS0d6dzRJcWRzblE3ZjBMb25ERVhFTWxycVFJREFRQUJBb0lCQVFDblp0S3ZmdVhreXdIZg0KTFZMSzRRK283YWV6dTNKbHl0V3plOVFBbWZZdkhFSWFVZ2VPdDZjTWhZZzZBVHNuYm5ZeDVYYUliQml0NnNkVw0KZElQQ2Jod1NQeUpTTkF6QWhORmRGd3N4QWNhZjdVaFpTZSt2TjQ4djluejBlZmdTQ3p2b0FEZmkwVTgySnQrOA0KUk0xa2lmZDF4emtJYkZiYUMrZ0dsOEpMVC81QWtaZkh1ZkVxSE5CK1M2eVIvaFdPM2JCU0RrdGxRMG16SEEwSg0KWGZaRDViMTRtbnNleGhXRVZScW5OczYyOTMzbWxQRU84OEFSU1MvVm00QmFNUm1QMWo5M25PSzd4bmtjVjVQcQ0KNmhWMG82RGZkSExNSDlvaytSYy83SjFyRzlEaXBiai8zYzkrVDYzVWQ2Y0xpTFhjZkJ1ckgwOFdjUVJycFhXNg0KczAyR3E3dmxBb0dCQU9zd2FWaWZnWWNzbUVteWVUMzAyakRiRHFodnBIMkJGdWp1eW5za3FmL0VmRG1hcnFzUg0KT0JUd0FoZThPL0VHYkY4OWtvUDFsYTNRTDk4bTJKQmtPcFY0L3d0eERyLzVkSjJjWHNsZitlRjZLcmU5YXRlVg0KZjZtd0ZPQUZvU1Fnd3dENndpaDlYVGdIb3BYeXVBUWRiZTJaNytRNGlWcjI2OFVpdVIvM1N0WmZBb0dCQU9LaA0KSEd0eENwZUcvWnlxNUM1bkNYVC9VZ3dnTnFNQ0M0bWFXZit6QkVBelNBallTckp5dDNUd1NuYXNRRzRzei9wNA0KYTIzdzdnVW43YysxSG1mTm5tc21IbHpnRWxYY3BCcjJRdzFIZS9oYVl3eVMrNm9TbUhBNmU1dU5Ra1RvblBwcw0KRld6OC9zSzcvOUZCZ3I1MDdxTzAyc2FWMFlDd1p4c24vOFllTnlyM0FvR0FSOGJKajh0Mk8ydkh1azRtcEZyeQ0Kc0JCYW85c1dwMXJiUkJHRWFCcWphelJxK1NXVkF3NUpRRktUUU8wb21nRnMxNUF5QStYU1hXNTQvYkNjVFV6Wg0KZUQ2cUQ3TGNYb2hpSjZ2T1hjVFZ2Uk9Nci9DMkI3OVBhOWthTmRoaCttV3BQY1pKdFJPMWZHRVFKSlVqeGRXNQ0KYzljVUdHR013ZDh6eTBFeW9HZlhSaDhDZ1lFQXROSWJYTlpxdncvajFsYTdqUktGQnlhWURqaTluejRJZXBmKw0KNnZlb2twallCc2FjZ3RqbzY1SzF0dzRrc2tOckJjdUMyOHQ1L2Y4bnphd1RRSHRjeE4wN0tKdFh4YzR2Mlp0WA0KVUljU3NNdGRjRER1UDNwcXlsQy9ReE5vSnBiNmVRdzM1Q2ZRRlF2dlJzVGdUcG41dGdDYzlnbWZpUEEydEFJcw0KSDZVSUcyMENnWUVBc3R5Y3ZwUThIN3VJZXQwTXpiTGhVZ2JYcEd1b0RWWGlxdW1UOVNKSkxtRm5jSlFNc0RSSQ0KaHY3L1RWU08vWmVnWVNkZGhIUS95MlR5VEh1U0Q0UzlqVTMzczF2ZUh1bjBZL1BmM1ZJSnY1SkVucEZOTGtIQg0KSTBHVDhYb2hIbzlqTVh4dUNrTlltYkMxVllMa21zVFJOblBYYXhJci9EVkZMbXBXeWkvYlZ5ND0NCi0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0t'],
+				['w1_state_url',           'https://gate-a.paypoint.pro/systems/hash_connect/callback.php'],
+				['w1_decline_url',         'https://gate-a.paypoint.pro/systems/hash_connect/from_bank_to_cabinet.php'],
+				['w1_success_url',         'https://gate-a.paypoint.pro/systems/hash_connect/from_bank_to_cabinet.php'],
+				['w1_public_key_callback', 'LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUFzN05BNm90OWE1M254R1llbE04OQpvMWltRmFjMDRoRUQzc1M4Y3d6RnhpMnJ4VU5RWGwydEVpV0lIekd5MnNFRkxEZmVOMmx2RVZDT05sN3BYbERQCmZwRlBCTlB5NnpmU1JNcTMydDMxOU1ET2t5a0JSVFJFNEdEbFUrTVBtL3UvVU9HdUhTYUZMS0tLWFZaVnlrNm8KOUsraEk5VWZWRTVGTmpGMDR2V0JyZ2Nud1dROStocU5FOUVocXhFTG9RZGhiY1V6M1BuQmtqV1JLbEJYblVCbwo5SHJib1RhUlVyK1lreVRoNktoL2FmUUhyZUtYeTh5QTBhclRUNG1wZWI1UEwwNmcwQjlFam40bSt3SFBOOERXCmZlWThVOFFJbW9hRFQ1bituZ3hNcHFJWHYya29rUEJBVGxwbm8zdWo5ZktjeGl2cXZFYnROckFBNXdSTTE3QnEKV3dJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0t'],
+				['service_password',       'zachislyator'],
+				['service_crt',            'Q2VydGlmaWNhdGU6CiAgICBEYXRhOgogICAgICAgIFZlcnNpb246IDEgKDB4MCkKICAgICAgICBTZXJpYWwgTnVtYmVyOiAzMDg1NDQgKDB4NGI1NDApCiAgICBTaWduYXR1cmUgQWxnb3JpdGhtOiBzaGEyNTZXaXRoUlNBRW5jcnlwdGlvbgogICAgICAgIElzc3VlcjogQz1SVSwgU1Q9TW9zY293LCBMPU1vc2NvdywgTz1EZW1vIFBheXBvaW50IFBybywgT1U9RGVtbyBQYXlwb2ludCBQcm8sIENOPXBheXBvaW50LnByby9lbWFpbEFkZHJlc3M9Y3J0QHBheXBvaW50LnBybwogICAgICAgIFZhbGlkaXR5CiAgICAgICAgICAgIE5vdCBCZWZvcmU6IE1hciAzMCAwOToyMzo1MCAyMDIxIEdNVAogICAgICAgICAgICBOb3QgQWZ0ZXIgOiBPY3QgMjkgMDk6MjM6NTAgMjAzMCBHTVQKICAgICAgICBTdWJqZWN0OiBDPVJVLCBTVD02NDMsIE89emFjaGlzbHlhdG9yLCBDTj1hZHY6NTUyODAwL2VtYWlsQWRkcmVzcz1hbmRyZXlAcGF5cG9pbnQucHJvCiAgICAgICAgU3ViamVjdCBQdWJsaWMgS2V5IEluZm86CiAgICAgICAgICAgIFB1YmxpYyBLZXkgQWxnb3JpdGhtOiByc2FFbmNyeXB0aW9uCiAgICAgICAgICAgICAgICBQdWJsaWMtS2V5OiAoMTAyNCBiaXQpCiAgICAgICAgICAgICAgICBNb2R1bHVzOgogICAgICAgICAgICAgICAgICAgIDAwOmI5OjA3OmIxOjIyOmMyOmQ4OmZkOmI3OjA1OjEzOjA3OjVjOmYwOjJkOgogICAgICAgICAgICAgICAgICAgIGVhOjQxOmUzOjg0OjBjOmRjOmJiOjg2OmI2OmYxOjdmOmNjOjE1Ojc2OmYyOgogICAgICAgICAgICAgICAgICAgIDI3OjI4OmUzOmZhOjAzOmJhOjViOjBiOjNjOjAxOjUwOmNlOjM2OmY1OjAxOgogICAgICAgICAgICAgICAgICAgIDJkOjA3OjNlOjNhOmY2OmExOjdmOjA3OjY3OmRiOmEyOjJhOjgzOmUzOjNlOgogICAgICAgICAgICAgICAgICAgIGZhOmM2OjYxOmI2OjFlOjcyOjE1OmYyOjcxOjZiOjdlOjNjOjE3OmY0OmQzOgogICAgICAgICAgICAgICAgICAgIDdmOjJmOmM3OjNlOjAwOmYxOmRlOmQ1OmQwOjY1OjFiOjIxOjk1OjNjOjlmOgogICAgICAgICAgICAgICAgICAgIGZmOjY3OmFhOmQ0OjRhOmVlOjY4OjQ0OjNkOjU4OjBjOjAwOjBiOmM1OjRhOgogICAgICAgICAgICAgICAgICAgIGY1OjFjOjliOjI2OmI4OjkyOjhhOjQzOjdhOjViOjAzOjViOjE5OjVmOjBlOgogICAgICAgICAgICAgICAgICAgIGQzOmRkOmUzOjM5OjAzOjAwOjQxOjRmOjE5CiAgICAgICAgICAgICAgICBFeHBvbmVudDogNjU1MzcgKDB4MTAwMDEpCiAgICBTaWduYXR1cmUgQWxnb3JpdGhtOiBzaGEyNTZXaXRoUlNBRW5jcnlwdGlvbgogICAgICAgICBhYTo3MDpiZDpjMjoyYjozZjpjZjo1Nzo4Mjo3MzpjNDplYTo0OTo0Njo0MzowMDpkMToyZToKICAgICAgICAgNDQ6MzU6ZDc6YWM6MGI6OTQ6YmI6Nzc6ZDg6NTM6NDg6NTQ6ZTc6NTE6ZTE6ZTE6YmU6YTQ6CiAgICAgICAgIDY0OmQwOmI3OjM4OmRkOmE1OmQ4Ojg1OmE4OjE3OmEzOjI5OmYzOjBiOjA2OjZhOjkyOjYxOgogICAgICAgICA0Nzo3NzoyYTozMTo5YTowMDo2ZTpjZDo0ZDoxZTplNDo1NTphYzpmYzpjNzo4ZDplMjplNDoKICAgICAgICAgN2Q6YWE6ZTQ6OGY6ZDE6ZWU6NDA6NGQ6ZGI6ZTM6ODU6ZGM6YTU6ZTU6ODI6ZGE6YWE6OGQ6CiAgICAgICAgIGY1OjU4Ojc5OjI2Ojc5OjBkOmNhOjM3OmVmOjRmOmZjOjZiOmU2OjQ2OjA2OjFhOmQzOjE4OgogICAgICAgICBkNTpkYzoxZDo3YzphNjoxMzoyMDo4NDoyMjo2MTo5MDo4ODo4OToxODo2YTpjNzo1YTpmMToKICAgICAgICAgNWI6ZDk6N2U6M2I6NmM6ZTQ6ZjQ6ZmM6ZWU6MDA6ZmE6YzI6YjI6ZmE6NzI6ZGU6Nzk6NTQ6CiAgICAgICAgIGQ4Ojk5OmY4OmRhOjQwOjNlOjE3OjgwOjhkOjg4OmRiOjcyOmY1OjUzOjI5OmJiOmIxOjM3OgogICAgICAgICAzNzo2OToxODowZTpjOTowODoyZjoxNjo4MzpmYjo0MjowZDoxYjo5YTpjZTo2ZDo3MjpiYToKICAgICAgICAgYzI6MDA6MGU6ZTQ6ZDU6ZTk6OWE6NmM6YmQ6YmY6YzA6N2U6OTc6NzM6NDI6OTI6ODA6MWE6CiAgICAgICAgIDdiOmRjOjUwOjcxOjU3Ojc0OmM1Ojc5Ojk5OmNmOmNhOmEzOjEzOjU1OmNhOjhlOmUxOjM2OgogICAgICAgICA1NzozMjowNjphODpiNTplZDo0NDplMTozMToxZTpjYjpkNDo2MTozYjo4Yzo1NTplMjpkMzoKICAgICAgICAgYmQ6NTM6ZGM6NGI6ZmY6YWY6ZTc6MzQ6YWM6Nzc6YTY6ZWY6YTI6Y2Q6ZDY6ZjU6YWU6MTM6CiAgICAgICAgIGQyOjQxOmE4OmRlOmMzOjg5OmMzOmM0OjZkOmY0OjRjOjE4OjViOjU1OjI5OjIwOmFiOjdjOgogICAgICAgICAzYTpmMzo1ZDoxODo3MTpkYTpjMzoxZTozMjo3NzplZjo0ZTphZTo3NTpkMzo2YTo2MTpjNzoKICAgICAgICAgMTQ6ZDg6NGQ6ZWI6OTM6MjE6MWU6ZTQ6NDk6Mzk6M2U6ZTU6MGY6ZmY6NDg6NmU6N2E6MjM6CiAgICAgICAgIDQyOjEzOjVjOjc1OjVmOjE0OmQ4OjVhOjlhOmNmOjc5OjZjOmEwOmVlOjNhOmM5OjEyOjNhOgogICAgICAgICBkNzpmYjo2ZDo1NDo5NTo3Nzo1ODo4OToyZDpjNDpiMjo0Nzo1Nzo2ZDo5ZDpjYzo0Nzo3MjoKICAgICAgICAgZDY6ODk6Mjc6ZmQ6YWY6Y2U6OWI6M2E6ODA6YjU6OWU6MWE6ZWU6MzE6NGI6Yzk6MTY6NTc6CiAgICAgICAgIDkwOjgzOmFhOjk5OjEzOjEwOmEwOmI1OjM2OjM5OmIxOjY0OjY4OmY3OmNjOjgyOmJjOjEzOgogICAgICAgICA1MDphMTpkNDo2ZTpiYzo2Yjo2NDphOTo4MDoyMTo3YjpiYjpkMTplYzo4NTo0Mjo5MjozMDoKICAgICAgICAgOWI6Y2M6NDI6ZWE6Zjc6N2Y6ODM6OWU6NGE6ZmE6Yzk6ZWE6ZGE6ZDU6OGI6Yjg6NDE6ZTU6CiAgICAgICAgIGM0OmM4Ojg0OmI4OjgwOjI4Ojg3OjgyOjcwOjk5OjVmOjM1OjUyOjFjOjY1Ojk3OmRkOmU0OgogICAgICAgICA1MzpmNzo1NDpkYzo3ZjowZDo5NTplMzo4NzoyMTpmNzpjOTo1Yzo4ZTplMjphYTplZTozZToKICAgICAgICAgMDY6N2I6ZjU6ZTc6ZjM6N2I6MmY6ZTA6MjQ6OWU6MTM6NDQ6MTk6ODM6MzE6NDA6M2M6MDg6CiAgICAgICAgIGQ0OjJkOjFjOmU1OmQxOmJiOjM2Ojc3OjkwOmU5OjY1OmIxOjBlOmM1OmYzOjdjOjdiOmFjOgogICAgICAgICBkNDphNDowYjpiNzo3ZDoxOToxZTozMTpjNjowMjpkNjozNjoxNzo3OTplNTphMTo3YToxODoKICAgICAgICAgYTc6Nzc6MzI6NjQ6NzA6ZGM6OWE6M2MKLS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUQvVENDQWVVQ0F3UzFRREFOQmdrcWhraUc5dzBCQVFzRkFEQ0JuekVMTUFrR0ExVUVCaE1DVWxVeER6QU4KQmdOVkJBZ01CazF2YzJOdmR6RVBNQTBHQTFVRUJ3d0dUVzl6WTI5M01Sb3dHQVlEVlFRS0RCRkVaVzF2SUZCaAplWEJ2YVc1MElGQnliekVhTUJnR0ExVUVDd3dSUkdWdGJ5QlFZWGx3YjJsdWRDQlFjbTh4RlRBVEJnTlZCQU1NCkRIQmhlWEJ2YVc1MExuQnliekVmTUIwR0NTcUdTSWIzRFFFSkFSWVFZM0owUUhCaGVYQnZhVzUwTG5CeWJ6QWUKRncweU1UQXpNekF3T1RJek5UQmFGdzB6TURFd01qa3dPVEl6TlRCYU1Hc3hDekFKQmdOVkJBWVRBbEpWTVF3dwpDZ1lEVlFRSURBTTJORE14RlRBVEJnTlZCQW9NREhwaFkyaHBjMng1WVhSdmNqRVRNQkVHQTFVRUF3d0tZV1IyCk9qVTFNamd3TURFaU1DQUdDU3FHU0liM0RRRUpBUllUWVc1a2NtVjVRSEJoZVhCdmFXNTBMbkJ5YnpDQm56QU4KQmdrcWhraUc5dzBCQVFFRkFBT0JqUUF3Z1lrQ2dZRUF1UWV4SXNMWS9iY0ZFd2RjOEMzcVFlT0VETnk3aHJieApmOHdWZHZJbktPUDZBN3BiQ3p3QlVNNDI5UUV0Qno0NjlxRi9CMmZib2lxRDR6NzZ4bUcySG5JVjhuRnJmandYCjlOTi9MOGMrQVBIZTFkQmxHeUdWUEovL1o2clVTdTVvUkQxWURBQUx4VXIxSEpzbXVKS0tRM3BiQTFzWlh3N1QKM2VNNUF3QkJUeGtDQXdFQUFUQU5CZ2txaGtpRzl3MEJBUXNGQUFPQ0FnRUFxbkM5d2lzL3oxZUNjOFRxU1VaRApBTkV1UkRYWHJBdVV1M2ZZVTBoVTUxSGg0YjZrWk5DM09OMmwySVdvRjZNcDh3c0dhcEpoUjNjcU1ab0FiczFOCkh1UlZyUHpIamVMa2ZhcmtqOUh1UUUzYjQ0WGNwZVdDMnFxTjlWaDVKbmtOeWpmdlQveHI1a1lHR3RNWTFkd2QKZktZVElJUWlZWkNJaVJocXgxcnhXOWwrTzJ6azlQenVBUHJDc3ZweTNubFUySm40MmtBK0Y0Q05pTnR5OVZNcAp1N0UzTjJrWURza0lMeGFEKzBJTkc1ck9iWEs2d2dBTzVOWHBtbXk5djhCK2wzTkNrb0FhZTl4UWNWZDB4WG1aCno4cWpFMVhLanVFMlZ6SUdxTFh0Uk9FeEhzdlVZVHVNVmVMVHZWUGNTLyt2NXpTc2Q2YnZvczNXOWE0VDBrR28KM3NPSnc4UnQ5RXdZVzFVcElLdDhPdk5kR0hIYXd4NHlkKzlPcm5YVGFtSEhGTmhONjVNaEh1UkpPVDdsRC85SQpibm9qUWhOY2RWOFUyRnFhejNsc29PNDZ5Ukk2MS90dFZKVjNXSWt0eExKSFYyMmR6RWR5MW9rbi9hL09tenFBCnRaNGE3akZMeVJaWGtJT3FtUk1Rb0xVMk9iRmthUGZNZ3J3VFVLSFVicnhyWkttQUlYdTcwZXlGUXBJd204eEMKNnZkL2c1NUsrc25xMnRXTHVFSGx4TWlFdUlBb2g0SndtVjgxVWh4bGw5M2tVL2RVM0g4TmxlT0hJZmZKWEk3aQpxdTQrQm52MTUvTjdMK0FrbmhORUdZTXhRRHdJMUMwYzVkRzdObmVRNldXeERzWHpmSHVzMUtRTHQzMFpIakhHCkF0WTJGM25sb1hvWXAzY3laSERjbWp3PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg=='],
+				['service_key',            'LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUNkUUlCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQWw4d2dnSmJBZ0VBQW9HQkFMa0hzU0xDMlAyM0JSTUgKWFBBdDZrSGpoQXpjdTRhMjhYL01GWGJ5SnlqaitnTzZXd3M4QVZET052VUJMUWMrT3ZhaGZ3ZG4yNklxZytNKworc1podGg1eUZmSnhhMzQ4Ri9UVGZ5L0hQZ0R4M3RYUVpSc2hsVHlmLzJlcTFFcnVhRVE5V0F3QUM4Vks5UnliCkpyaVNpa042V3dOYkdWOE8wOTNqT1FNQVFVOFpBZ01CQUFFQ2dZQmJya1VGL1ZmNWR5c3JmNVY4YUxQUFRBV04KUGY0cFJSS3FpUndGb1B6b1ZQWDN6T241eWhTNHprVUs1emRCaElOQTIwcVBCOVliSjBmTVhOTnpZczBTdHlVYQp3MklBWllHWk5ZMk85cFNUdGtaeEtCMW02Znpyc0JtUFBoUThVYWlqVUw1eFR3ZmlWcXptSm9IOGJOQzA5TjJXClc5VzJpZXE5YS9CRzJqNmxoUUpCQU43TUV0Ukl6OUhGdWFnZkFyS25XZlJ6OFBXOUVUWW9PdG5pWHk2RHgwWkEKT0xIZVpTamdIREJNR0x0VVJzZFl5N1NNWmpIbUpHeFl1VG9DZlBoTjlNc0NRUURVbXNRN0RSa2ROb2ZsNklwVApOZVZwazl4b0V0Z0RvUjZHVll3TVAwY2k0dnh2NUpFa050WWZTemdOUXVVWFVLUVN3dUdzUVIvcG9wTGIwOGJlClZuTXJBa0I4OE5SZVY3YXpYTDZRbVZOWi9KOWxodDlKNzQwSFllZ2U1K09Zb2kzT0o1V2pxYVB4R0R5Mm1QWUYKbDIxWnZXSC9EZjBCWHA1dVpCTDdoUW12OVllaEFrQXJqUnlmZ0JwaDZwYkNHUFdsQUFoanJUOWNMbWdEcmxDagpjZ2pEUlg4Yi9XVjZ3bGFkRllLZFhIbzU5VGNhcEpGSHFwWXlCQkUyZWZBZGllOVdBbDJMQWtBaCtIQjZvajhzCmxiYWVVcm5QNWIvSy9yYmZKKzJhbjhaMzB4UVJPSE93UXZSSFJUbnhpTmI2SGlTUmtqSkNwSERLZDNIa25Db2UKR0FYZVRWVE1aTk1RCi0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS0K'],
+				['service_login',          'zachislyator'],
+				['w1_site_id_merchant',    $site_id_pay],
+				['w1_term_url',            'https://gate-a.paypoint.pro/systems/hash_connect/from_bank_to_cabinet.php'],
+				['w1_acs_url',             'https://gate-a.paypoint.pro/300/test_bank_acs.php'],
+				['url_referrer',           'https://gate-a.paypoint.pro/referrer.php'],
+				['url_referrer_3ds2',      'https://gate-a.paypoint.pro/systems/hash_connect/referrer_3ds2.php'],
+				['notification_3ds2',      'https://gate-a.paypoint.pro/systems/hash_connect/notification_3ds2.php'],
+			];
+        
+		$how_point = $this->db->createHashconnectGate($test_name, $rows);
+        
+		$fields = json_encode(['curr' => '810']);
+		$transact = $this->db->insertExchange(PROTOCOL_HASHCONNECT, $how_point, 'balance', $fields);
+		
+        sleep($timeout);
+        
+		$next_operation = $this->db->get_next_operation($transact);
+		$this->loger->end_log();
+		// можно и оставить для истории
+		// $this->db->deleteGate($how_point);
+		
+		return $next_operation;
+    }
+    
+
+}

@@ -1,0 +1,5 @@
+/test/vendor/
+/test/logs/
+/logs/
+/video/
+/test/.phpunit.result.cache

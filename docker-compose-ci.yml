@@ -1,0 +1,29 @@
+version: "3.8"
+
+networks:
+    app_net:
+        ipam:
+            driver: default
+            config:
+                - subnet: "172.16.238.0/24"
+
+services:
+
+  unit:
+    container_name: unit
+    image: $TEST_IMAGE_CURRENT
+    ports: 
+      - "3100:80"
+    volumes:
+      - ./logs_unit:/var/www/html/logs
+    networks:
+      app_net:
+  
+  #database:
+  #  container_name: unit_db
+  #  image: $DB_IMAGE_CURRENT
+  #  ports: 
+  #    - "3306:3306"
+  #  environment:
+  #    - MYSQL_ROOT_PASSWORD=root
+  
